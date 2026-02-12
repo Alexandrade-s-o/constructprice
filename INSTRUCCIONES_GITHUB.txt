@@ -1,0 +1,25 @@
+PASO 1: INSTALAR GIT
+---------------------------------------------------------
+1. Descarga Git aquí: https://git-scm.com/download/win
+2. Instálalo (dale "Siguiente" a todo).
+3. Abre una nueva terminal (PowerShell o CMD).
+
+PASO 2: CREAR EL REPOSITORIO EN GITHUB
+---------------------------------------------------------
+1. Ve a https://github.com/new
+2. En "Repository name" escribe: constructprice
+3. Dale al botón verde "Create repository".
+
+PASO 3: SUBIR TU PROYECTO (COPIA Y PEGA ESTO EN LA TERMINAL)
+---------------------------------------------------------
+Sigue estos comandos uno por uno en la carpeta de tu proyecto:
+
+git init
+git add .
+git commit -m "Versión 1.0: App completa con IA y Sockets"
+git branch -M main
+git remote add origin https://github.com/Alexandrade-s-o/constructprice.git
+git push -u origin main
+
+---------------------------------------------------------
+NOTA: La primera vez te pedirá iniciar sesión en GitHub.
