@@ -54,8 +54,8 @@ const MaterialsView: React.FC<MaterialsViewProps> = ({ materials, setMaterials, 
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">
           <KeyRound size={18} className="mt-0.5 flex-shrink-0" />
           <span>
-            Para buscar precios reales en la web necesitas configurar tu API Key de Groq.
-            Ve a <strong>Configuración</strong> en el menú lateral e ingrésala.
+            Para usar la IA necesitas tu API Key de <strong>Cerebras</strong> (y la de <strong>Tavily</strong> para precios web reales).
+            Ve a <strong>Configuración</strong> en el menú lateral e ingrésalas.
           </span>
         </div>
       )}

@@ -1,13 +1,13 @@
 # ConstructPrice: Gestor de Precios de Construcción en Tiempo Real
 
 ![ConstructPrice Banner](https://img.shields.io/badge/Status-En_Desarrollo-orange?style=for-the-badge)
-![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Socket.io_|_Groq-blue?style=for-the-badge)
+![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Socket.io_|_Cerebras-blue?style=for-the-badge)
 
-**ConstructPrice** es una plataforma SaaS diseñada para constructoras y ferreterías en Colombia que permite gestionar, actualizar y analizar los precios de materiales de construcción en tiempo real, potenciada por Inteligencia Artificial (Groq).
+**ConstructPrice** es una plataforma SaaS diseñada para constructoras y ferreterías en Colombia que permite gestionar, actualizar y analizar los precios de materiales de construcción en tiempo real, potenciada por Inteligencia Artificial (Cerebras).
 
 ## 🚀 Características Principales
 
-### 1. **Buscador de Precios con IA (Groq + Búsqueda Web)**
+### 1. **Buscador de Precios con IA (Cerebras + Búsqueda Web)**
 - **Actualización Automática:** Busca el mejor precio del mercado en tiempo real.
 - **Fuentes Locales:** Rastrea Homecenter, Constructor, Easy, y **Ferreterías Locales** (vía Google Search).
 - **Evidencia:** Proporciona el link directo al producto encontrado.
@@ -32,8 +32,8 @@
 El proyecto sigue una arquitectura moderna y escalable:
 
 - **Frontend:** React 19 + Vite + TypeScript + TailwindCSS.
-- **Backend:** Node.js + Express + Socket.io (Puerto 3001). Actúa como proxy seguro hacia Groq (la API Key nunca se expone en el navegador).
-- **IA:** Groq API con el modelo `groq/compound` (incluye búsqueda web en tiempo real).
+- **Backend:** Node.js + Express + Socket.io (Puerto 3001). Actúa como proxy seguro hacia Cerebras y Tavily (las API Keys nunca se exponen en el navegador).
+- **IA:** Cerebras API (modelo `llama-3.3-70b`) para razonar, y **Tavily** para la búsqueda web en tiempo real.
 - **Base de Datos:** PostgreSQL (Esquema definido en `database/`).
 - **Iconos:** Lucide React.
 - **Gráficos:** Recharts.
@@ -54,18 +54,22 @@ git clone https://github.com/TU_USUARIO/constructprice.git
 cd constructprice
 ```
 
-### 2. Configurar la API Key de Groq
-Tienes **dos opciones** (consigue una clave gratis en https://console.groq.com/keys):
+### 2. Configurar las API Keys
+Necesitas dos claves gratuitas:
+- **Cerebras** (IA, obligatoria): https://cloud.cerebras.ai/
+- **Tavily** (búsqueda web real, opcional): https://app.tavily.com/
 
 **Opción A — Desde la interfaz (recomendado):** Inicia la app y ve a **Configuración** en el
-menú lateral. Pega tu clave y pulsa *Guardar y probar*. Se guarda en tu navegador.
+menú lateral. Pega tus claves y pulsa *Guardar y probar*. Se guardan en tu navegador.
 
-**Opción B — Archivo `.env`:** Crea un archivo `.env` en la raíz (puedes copiar `.env.example`):
+**Opción B — Archivo `.env`:** Crea un archivo `.env` en la raíz (copia `.env.example`):
 ```env
-GROQ_API_KEY=tu_api_key_de_groq_aqui
+CEREBRAS_API_KEY=tu_api_key_de_cerebras_aqui
+TAVILY_API_KEY=tu_api_key_de_tavily_aqui
 ```
 
-> Si configuras la clave desde la interfaz, esa tiene prioridad sobre la del `.env`.
+> Las claves ingresadas desde la interfaz tienen prioridad sobre las del `.env`.
+> Sin la clave de Tavily, la IA responde con precios estimados (sin búsqueda web en vivo).
 
 ### 3. Instalar Dependencias
 ```bash
@@ -76,7 +80,7 @@ npm install
 ### 4. Iniciar la Aplicación (Modo Desarrollo)
 Necesitarás dos terminales:
 
-**Terminal 1: Servidor Backend (WebSockets + API de Groq)**
+**Terminal 1: Servidor Backend (WebSockets + API de Cerebras)**
 ```bash
 npm run server
 # Corre en http://localhost:3001
@@ -88,14 +92,14 @@ npm run dev
 # Corre en http://localhost:3000
 ```
 
-> El frontend pide los precios al backend, y el backend consulta Groq con búsqueda web en vivo.
-> Así la API Key de Groq permanece segura en el servidor y no se expone en el navegador.
+> El frontend pide los precios al backend, y el backend consulta Cerebras con búsqueda web en vivo.
+> Así la API Key de Cerebras permanece segura en el servidor y no se expone en el navegador.
 
 ---
 
 ## ☁️ Despliegue en Vercel
 
-El proyecto ya está listo para Vercel. Los endpoints de Groq corren como **funciones
+El proyecto ya está listo para Vercel. Los endpoints de Cerebras corren como **funciones
 serverless** (carpeta `/api`) y el frontend se sirve como sitio estático.
 
 > **Nota:** Vercel no mantiene conexiones WebSocket persistentes, así que la

@@ -1,7 +1,7 @@
 import { Material } from "../types";
-import { getApiKey } from "./apiKey";
+import { getCerebrasKey, getTavilyKey } from "./apiKey";
 
-// URL del backend (Express + Groq).
+// URL del backend (Express + funciones serverless).
 // - En producción (Vercel) usa rutas relativas ("") → las funciones serverless de /api.
 // - En desarrollo apunta al servidor local (puerto 3001).
 // - Se puede sobreescribir con VITE_API_URL.
@@ -9,23 +9,25 @@ const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   (import.meta.env.DEV ? "http://localhost:3001" : "");
 
-// Cabeceras con la API Key que el usuario ingresó en la interfaz (si existe).
+// Cabeceras con las API Keys que el usuario ingresó en la interfaz (si existen).
 const buildHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const key = getApiKey();
-  if (key) headers["x-groq-key"] = key;
+  const cerebras = getCerebrasKey();
+  const tavily = getTavilyKey();
+  if (cerebras) headers["x-cerebras-key"] = cerebras;
+  if (tavily) headers["x-tavily-key"] = tavily;
   return headers;
 };
 
-/** Valida una API Key de Groq contra el backend. */
+/** Valida una API Key de Cerebras contra el backend. */
 export const validateApiKey = async (
   key: string
 ): Promise<{ valid: boolean; error?: string }> => {
   try {
     const res = await fetch(`${API_URL}/api/validate-key`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-groq-key": key },
-      body: JSON.stringify({ apiKey: key }),
+      headers: { "Content-Type": "application/json", "x-cerebras-key": key },
+      body: JSON.stringify({ cerebrasKey: key }),
     });
     return await res.json();
   } catch (error) {

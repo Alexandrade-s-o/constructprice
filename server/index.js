@@ -6,10 +6,11 @@ import {
     runUpdatePrice,
     runMarketReport,
     runValidateKey,
-    resolveApiKey,
-    groqConfigured,
-    GROQ_MODEL,
-} from '../api/_groq.js';
+    resolveCerebrasKey,
+    resolveTavilyKey,
+    aiConfigured,
+    AI_MODEL,
+} from '../api/_ai.js';
 
 // Carga automática de variables de entorno desde .env (Node 20.6+)
 try {
@@ -28,28 +29,30 @@ const io = new Server(server, {
 });
 
 // ====================================================================
-//  API de Groq (búsqueda web en tiempo real) — misma lógica que Vercel
+//  API de IA (Cerebras + Tavily) — misma lógica que Vercel
 // ====================================================================
 app.post('/api/update-price', async (req, res) => {
-    const apiKey = resolveApiKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runUpdatePrice({ body: req.body || {}, apiKey });
+    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
+    const tavilyKey = resolveTavilyKey({ headers: req.headers, body: req.body });
+    const { status, data } = await runUpdatePrice({ body: req.body || {}, cerebrasKey, tavilyKey });
     res.status(status).json(data);
 });
 
 app.post('/api/market-report', async (req, res) => {
-    const apiKey = resolveApiKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runMarketReport({ body: req.body || {}, apiKey });
+    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
+    const tavilyKey = resolveTavilyKey({ headers: req.headers, body: req.body });
+    const { status, data } = await runMarketReport({ body: req.body || {}, cerebrasKey, tavilyKey });
     res.status(status).json(data);
 });
 
 app.post('/api/validate-key', async (req, res) => {
-    const apiKey = resolveApiKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runValidateKey(apiKey);
+    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
+    const { status, data } = await runValidateKey(cerebrasKey);
     res.status(status).json(data);
 });
 
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, model: GROQ_MODEL, groqConfigured: groqConfigured() });
+    res.json({ ok: true, model: AI_MODEL, cerebrasConfigured: aiConfigured() });
 });
 
 // ====================================================================
@@ -74,10 +77,10 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-    console.log(`Servidor Socket.io + API Groq corriendo en puerto ${PORT}`);
-    if (!groqConfigured()) {
-        console.warn("⚠️  GROQ_API_KEY no está en .env (puedes ingresarla desde la interfaz).");
+    console.log(`Servidor Socket.io + API IA corriendo en puerto ${PORT}`);
+    if (!aiConfigured()) {
+        console.warn("⚠️  CEREBRAS_API_KEY no está en .env (puedes ingresarla desde la interfaz).");
     } else {
-        console.log(`✅ Groq configurado con el modelo "${GROQ_MODEL}"`);
+        console.log(`✅ Cerebras configurado con el modelo "${AI_MODEL}"`);
     }
 });
