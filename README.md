@@ -1,13 +1,13 @@
 # ConstructPrice: Gestor de Precios de Construcción en Tiempo Real
 
 ![ConstructPrice Banner](https://img.shields.io/badge/Status-En_Desarrollo-orange?style=for-the-badge)
-![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Socket.io_|_Gemini_2.0-blue?style=for-the-badge)
+![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Socket.io_|_Groq-blue?style=for-the-badge)
 
-**ConstructPrice** es una plataforma SaaS diseñada para constructoras y ferreterías en Colombia que permite gestionar, actualizar y analizar los precios de materiales de construcción en tiempo real, potenciada por Inteligencia Artificial.
+**ConstructPrice** es una plataforma SaaS diseñada para constructoras y ferreterías en Colombia que permite gestionar, actualizar y analizar los precios de materiales de construcción en tiempo real, potenciada por Inteligencia Artificial (Groq).
 
 ## 🚀 Características Principales
 
-### 1. **Buscador de Precios con IA (Gemini 2.0)**
+### 1. **Buscador de Precios con IA (Groq + Búsqueda Web)**
 - **Actualización Automática:** Busca el mejor precio del mercado en tiempo real.
 - **Fuentes Locales:** Rastrea Homecenter, Constructor, Easy, y **Ferreterías Locales** (vía Google Search).
 - **Evidencia:** Proporciona el link directo al producto encontrado.
@@ -32,8 +32,8 @@
 El proyecto sigue una arquitectura moderna y escalable:
 
 - **Frontend:** React 19 + Vite + TypeScript + TailwindCSS.
-- **Backend:** Node.js + Express + Socket.io (Puerto 3001).
-- **IA:** Google Generative AI SDK (Gemini 2.0 Flash Experimental).
+- **Backend:** Node.js + Express + Socket.io (Puerto 3001). Actúa como proxy seguro hacia Groq (la API Key nunca se expone en el navegador).
+- **IA:** Groq API con el modelo `groq/compound` (incluye búsqueda web en tiempo real).
 - **Base de Datos:** PostgreSQL (Esquema definido en `database/`).
 - **Iconos:** Lucide React.
 - **Gráficos:** Recharts.
@@ -55,9 +55,10 @@ cd constructprice
 ```
 
 ### 2. Configurar Variables de Entorno
-Crea un archivo `.env.local` en la raíz con tu API Key de Google Gemini:
+Crea un archivo `.env` en la raíz (puedes copiar `.env.example`) con tu API Key de **Groq**.
+Consigue una gratis en https://console.groq.com/keys
 ```env
-VITE_GEMINI_API_KEY=tu_api_key_aqui
+GROQ_API_KEY=tu_api_key_de_groq_aqui
 ```
 
 ### 3. Instalar Dependencias
@@ -69,17 +70,20 @@ npm install
 ### 4. Iniciar la Aplicación (Modo Desarrollo)
 Necesitarás dos terminales:
 
-**Terminal 1: Servidor Backend (WebSockets)**
+**Terminal 1: Servidor Backend (WebSockets + API de Groq)**
 ```bash
-node server/index.js
+npm run server
 # Corre en http://localhost:3001
 ```
 
 **Terminal 2: Frontend (React)**
 ```bash
 npm run dev
-# Corre en http://localhost:3002
+# Corre en http://localhost:3000
 ```
+
+> El frontend pide los precios al backend, y el backend consulta Groq con búsqueda web en vivo.
+> Así la API Key de Groq permanece segura en el servidor y no se expone en el navegador.
 
 ---
 

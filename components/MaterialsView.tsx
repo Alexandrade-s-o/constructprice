@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, Plus, Edit2, ExternalLink, ArrowUp, ArrowDown, Minus, RefreshCw, Globe } from 'lucide-react';
 import { Material, Category, Unit } from '../types';
 import { SUPPLIERS } from '../constants';
-import { updateMaterialWithAI } from '../services/geminiService';
+import { updateMaterialWithAI } from '../services/aiService';
 
 interface MaterialsViewProps {
   materials: Material[];

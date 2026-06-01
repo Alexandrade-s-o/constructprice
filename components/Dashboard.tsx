@@ -2,7 +2,7 @@ import React from 'react';
 import { Material } from '../types';
 import StatsCard from './StatsCard';
 import { Package, TrendingUp, DollarSign, Activity, FileText, Loader2 } from 'lucide-react';
-import { generateMarketReport } from '../services/geminiService';
+import { generateMarketReport } from '../services/aiService';
 
 interface DashboardProps {
   materials: Material[];
