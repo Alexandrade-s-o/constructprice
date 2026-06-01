@@ -54,17 +54,28 @@ const cleanJsonString = (text) => {
 };
 
 /**
+ * Resuelve la API Key a usar: primero la que envía el usuario desde la interfaz
+ * (cabecera x-groq-key o campo apiKey en el cuerpo) y, si no, la del entorno (.env).
+ */
+const resolveApiKey = (req) => {
+    const fromHeader = req?.headers?.['x-groq-key'];
+    const fromBody = req?.body?.apiKey;
+    return (fromHeader || fromBody || GROQ_API_KEY || "").trim();
+};
+
+/**
  * Llama a la API de Groq y devuelve el contenido del mensaje + herramientas usadas.
  */
-const callGroq = async (messages, { temperature = 0.2 } = {}) => {
-    if (!GROQ_API_KEY) {
-        throw new Error("Falta la variable de entorno GROQ_API_KEY. Configúrala en el archivo .env");
+const callGroq = async (messages, { temperature = 0.2, apiKey } = {}) => {
+    const key = apiKey || GROQ_API_KEY;
+    if (!key) {
+        throw new Error("Falta la API Key de Groq. Ingrésala en la pantalla de Configuración o en el archivo .env");
     }
 
     const res = await fetch(GROQ_URL, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${GROQ_API_KEY}`,
+            "Authorization": `Bearer ${key}`,
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -140,7 +151,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO, SIN TEXTO ADICIONAL, CON ESTE F
         const { content, executedTools } = await callGroq([
             { role: "system", content: "Eres un asistente experto en precios de materiales de construcción en Colombia. Usas búsqueda web para obtener datos reales y respondes solo con JSON." },
             { role: "user", content: prompt }
-        ]);
+        ], { apiKey: resolveApiKey(req) });
 
         let data;
         try {
@@ -194,7 +205,7 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
         const { content } = await callGroq([
             { role: "system", content: "Eres un analista del sector construcción en Colombia. Usas búsqueda web para datos actuales." },
             { role: "user", content: prompt }
-        ], { temperature: 0.4 });
+        ], { temperature: 0.4, apiKey: resolveApiKey(req) });
 
         res.json({ report: content || "No se obtuvo respuesta." });
     } catch (error) {
@@ -206,6 +217,26 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
 // Healthcheck simple
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, model: GROQ_MODEL, groqConfigured: !!GROQ_API_KEY });
+});
+
+// Valida que una API Key de Groq sea correcta (consulta ligera al listado de modelos)
+app.post('/api/validate-key', async (req, res) => {
+    const key = resolveApiKey(req);
+    if (!key) {
+        return res.status(400).json({ valid: false, error: "No se proporcionó ninguna API Key." });
+    }
+    try {
+        const r = await fetch("https://api.groq.com/openai/v1/models", {
+            headers: { "Authorization": `Bearer ${key}` }
+        });
+        if (r.ok) {
+            return res.json({ valid: true });
+        }
+        const errText = await r.text();
+        return res.status(200).json({ valid: false, error: `Groq rechazó la clave (${r.status}).`, detail: errText });
+    } catch (error) {
+        return res.status(500).json({ valid: false, error: error.message });
+    }
 });
 
 // ====================================================================

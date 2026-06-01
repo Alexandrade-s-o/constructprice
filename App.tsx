@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MaterialsView from './components/MaterialsView';
 import AnalyticsView from './components/AnalyticsView';
+import SettingsView from './components/SettingsView';
 import MaterialModal from './components/MaterialModal';
 import { Material } from './types';
 import { INITIAL_MATERIALS } from './constants';
@@ -108,6 +109,8 @@ const App: React.FC = () => {
         );
       case 'analytics':
         return <AnalyticsView materials={materials} />;
+      case 'settings':
+        return <SettingsView />;
       default:
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-gray-500">

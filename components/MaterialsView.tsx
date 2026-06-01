@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit2, ExternalLink, ArrowUp, ArrowDown, Minus, RefreshCw, Globe } from 'lucide-react';
+import { Search, Filter, Plus, Edit2, ExternalLink, ArrowUp, ArrowDown, Minus, RefreshCw, Globe, KeyRound } from 'lucide-react';
 import { Material, Category, Unit } from '../types';
 import { SUPPLIERS } from '../constants';
 import { updateMaterialWithAI } from '../services/aiService';
+import { hasApiKey } from '../services/apiKey';
 
 interface MaterialsViewProps {
   materials: Material[];
@@ -49,6 +50,16 @@ const MaterialsView: React.FC<MaterialsViewProps> = ({ materials, setMaterials, 
 
   return (
     <div className="space-y-6">
+      {!hasApiKey() && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">
+          <KeyRound size={18} className="mt-0.5 flex-shrink-0" />
+          <span>
+            Para buscar precios reales en la web necesitas configurar tu API Key de Groq.
+            Ve a <strong>Configuración</strong> en el menú lateral e ingrésala.
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Inventario de Materiales</h2>

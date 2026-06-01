@@ -54,12 +54,18 @@ git clone https://github.com/TU_USUARIO/constructprice.git
 cd constructprice
 ```
 
-### 2. Configurar Variables de Entorno
-Crea un archivo `.env` en la raíz (puedes copiar `.env.example`) con tu API Key de **Groq**.
-Consigue una gratis en https://console.groq.com/keys
+### 2. Configurar la API Key de Groq
+Tienes **dos opciones** (consigue una clave gratis en https://console.groq.com/keys):
+
+**Opción A — Desde la interfaz (recomendado):** Inicia la app y ve a **Configuración** en el
+menú lateral. Pega tu clave y pulsa *Guardar y probar*. Se guarda en tu navegador.
+
+**Opción B — Archivo `.env`:** Crea un archivo `.env` en la raíz (puedes copiar `.env.example`):
 ```env
 GROQ_API_KEY=tu_api_key_de_groq_aqui
 ```
+
+> Si configuras la clave desde la interfaz, esa tiene prioridad sobre la del `.env`.
 
 ### 3. Instalar Dependencias
 ```bash

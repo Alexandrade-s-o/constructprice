@@ -1,8 +1,37 @@
 import { Material } from "../types";
+import { getApiKey } from "./apiKey";
 
 // URL del backend (Express + Groq). Se puede sobreescribir con VITE_API_URL.
 const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:3001";
+
+// Cabeceras con la API Key que el usuario ingresó en la interfaz (si existe).
+const buildHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = getApiKey();
+  if (key) headers["x-groq-key"] = key;
+  return headers;
+};
+
+/** Valida una API Key de Groq contra el backend. */
+export const validateApiKey = async (
+  key: string
+): Promise<{ valid: boolean; error?: string }> => {
+  try {
+    const res = await fetch(`${API_URL}/api/validate-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-groq-key": key },
+      body: JSON.stringify({ apiKey: key }),
+    });
+    return await res.json();
+  } catch (error) {
+    return {
+      valid: false,
+      error:
+        "No se pudo conectar con el servidor. Verifica que el backend esté corriendo (npm run server).",
+    };
+  }
+};
 
 /**
  * Busca el precio real de un material en la web usando Groq (modelo con búsqueda web).
@@ -14,7 +43,7 @@ export const updateMaterialWithAI = async (
   try {
     const res = await fetch(`${API_URL}/api/update-price`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildHeaders(),
       body: JSON.stringify({
         name: material.name,
         unit: material.unit,
@@ -58,7 +87,7 @@ export const generateMarketReport = async (
 
     const res = await fetch(`${API_URL}/api/market-report`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildHeaders(),
       body: JSON.stringify({ summary }),
     });
 
