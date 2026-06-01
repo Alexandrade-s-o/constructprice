@@ -1,5 +1,5 @@
 import { Material } from "../types";
-import { getCerebrasKey, getTavilyKey } from "./apiKey";
+import { getGroqKey, getTavilyKey } from "./apiKey";
 
 // URL del backend (Express + funciones serverless).
 // - En producción (Vercel) usa rutas relativas ("") → las funciones serverless de /api.
@@ -12,22 +12,22 @@ const API_URL =
 // Cabeceras con las API Keys que el usuario ingresó en la interfaz (si existen).
 const buildHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const cerebras = getCerebrasKey();
+  const groq = getGroqKey();
   const tavily = getTavilyKey();
-  if (cerebras) headers["x-cerebras-key"] = cerebras;
+  if (groq) headers["x-groq-key"] = groq;
   if (tavily) headers["x-tavily-key"] = tavily;
   return headers;
 };
 
-/** Valida una API Key de Cerebras contra el backend. */
+/** Valida una API Key de Groq contra el backend. */
 export const validateApiKey = async (
   key: string
 ): Promise<{ valid: boolean; error?: string }> => {
   try {
     const res = await fetch(`${API_URL}/api/validate-key`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-cerebras-key": key },
-      body: JSON.stringify({ cerebrasKey: key }),
+      headers: { "Content-Type": "application/json", "x-groq-key": key },
+      body: JSON.stringify({ groqKey: key }),
     });
     return await res.json();
   } catch (error) {

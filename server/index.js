@@ -6,7 +6,7 @@ import {
     runUpdatePrice,
     runMarketReport,
     runValidateKey,
-    resolveCerebrasKey,
+    resolveGroqKey,
     resolveTavilyKey,
     aiConfigured,
     AI_MODEL,
@@ -29,30 +29,30 @@ const io = new Server(server, {
 });
 
 // ====================================================================
-//  API de IA (Cerebras + Tavily) — misma lógica que Vercel
+//  API de IA (Groq + Tavily) — misma lógica que Vercel
 // ====================================================================
 app.post('/api/update-price', async (req, res) => {
-    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
+    const groqKey = resolveGroqKey({ headers: req.headers, body: req.body });
     const tavilyKey = resolveTavilyKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runUpdatePrice({ body: req.body || {}, cerebrasKey, tavilyKey });
+    const { status, data } = await runUpdatePrice({ body: req.body || {}, groqKey, tavilyKey });
     res.status(status).json(data);
 });
 
 app.post('/api/market-report', async (req, res) => {
-    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
+    const groqKey = resolveGroqKey({ headers: req.headers, body: req.body });
     const tavilyKey = resolveTavilyKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runMarketReport({ body: req.body || {}, cerebrasKey, tavilyKey });
+    const { status, data } = await runMarketReport({ body: req.body || {}, groqKey, tavilyKey });
     res.status(status).json(data);
 });
 
 app.post('/api/validate-key', async (req, res) => {
-    const cerebrasKey = resolveCerebrasKey({ headers: req.headers, body: req.body });
-    const { status, data } = await runValidateKey(cerebrasKey);
+    const groqKey = resolveGroqKey({ headers: req.headers, body: req.body });
+    const { status, data } = await runValidateKey(groqKey);
     res.status(status).json(data);
 });
 
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, model: AI_MODEL, cerebrasConfigured: aiConfigured() });
+    res.json({ ok: true, model: AI_MODEL, groqConfigured: aiConfigured() });
 });
 
 // ====================================================================
@@ -79,8 +79,8 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`Servidor Socket.io + API IA corriendo en puerto ${PORT}`);
     if (!aiConfigured()) {
-        console.warn("⚠️  CEREBRAS_API_KEY no está en .env (puedes ingresarla desde la interfaz).");
+        console.warn("⚠️  GROQ_API_KEY no está en .env (puedes ingresarla desde la interfaz).");
     } else {
-        console.log(`✅ Cerebras configurado con el modelo "${AI_MODEL}"`);
+        console.log(`✅ Groq configurado con el modelo "${AI_MODEL}"`);
     }
 });

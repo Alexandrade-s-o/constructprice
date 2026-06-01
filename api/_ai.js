@@ -1,13 +1,15 @@
-// Lógica compartida de IA: Cerebras (modelo LLM) + Tavily (búsqueda web real).
+// Lógica compartida de IA: Groq (modelo LLM) + Tavily (búsqueda web real).
 // Usada tanto por las funciones serverless de Vercel (/api) como por el
 // servidor local de desarrollo (server/index.js).
+// Nota: usamos un modelo NORMAL de Groq (no "compound"), porque la búsqueda web
+// la hace Tavily; así no se produce el error 413 del plan gratuito.
 
-const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
-export const AI_MODEL = process.env.CEREBRAS_MODEL || "llama-3.3-70b";
-const ENV_CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+export const AI_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const ENV_GROQ_KEY = process.env.GROQ_API_KEY;
 const ENV_TAVILY_KEY = process.env.TAVILY_API_KEY;
 
-export const aiConfigured = () => !!ENV_CEREBRAS_KEY;
+export const aiConfigured = () => !!ENV_GROQ_KEY;
 export const getToday = () => new Date().toISOString().split("T")[0];
 
 /** Limpia el texto de respuesta para extraer el JSON válido. */
@@ -26,10 +28,10 @@ export const cleanJsonString = (text) => {
   return clean.trim();
 };
 
-/** Resuelve la API Key de Cerebras (cabecera x-cerebras-key, cuerpo o entorno). */
-export const resolveCerebrasKey = ({ headers = {}, body = {} } = {}) => {
-  const fromHeader = headers["x-cerebras-key"] || headers["X-Cerebras-Key"];
-  return (fromHeader || body.cerebrasKey || ENV_CEREBRAS_KEY || "").trim();
+/** Resuelve la API Key de Groq (cabecera x-groq-key, cuerpo o entorno). */
+export const resolveGroqKey = ({ headers = {}, body = {} } = {}) => {
+  const fromHeader = headers["x-groq-key"] || headers["X-Groq-Key"];
+  return (fromHeader || body.groqKey || ENV_GROQ_KEY || "").trim();
 };
 
 /** Resuelve la API Key de Tavily (búsqueda web real). */
@@ -38,18 +40,18 @@ export const resolveTavilyKey = ({ headers = {}, body = {} } = {}) => {
   return (fromHeader || body.tavilyKey || ENV_TAVILY_KEY || "").trim();
 };
 
-/** Llama al modelo de Cerebras (API compatible con OpenAI). */
-export const callCerebras = async (messages, { temperature = 0.2, apiKey, maxTokens = 1024 } = {}) => {
-  const key = apiKey || ENV_CEREBRAS_KEY;
+/** Llama al modelo de Groq (API compatible con OpenAI). */
+export const callGroq = async (messages, { temperature = 0.2, apiKey, maxTokens = 1024 } = {}) => {
+  const key = apiKey || ENV_GROQ_KEY;
   if (!key) {
     const err = new Error(
-      "Falta la API Key de Cerebras. Ingrésala en la pantalla de Configuración."
+      "Falta la API Key de Groq. Ingrésala en la pantalla de Configuración."
     );
     err.status = 401;
     throw err;
   }
 
-  const res = await fetch(CEREBRAS_URL, {
+  const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
@@ -62,11 +64,11 @@ export const callCerebras = async (messages, { temperature = 0.2, apiKey, maxTok
     const errText = await res.text();
     let message;
     if (res.status === 401 || res.status === 403) {
-      message = "API Key de Cerebras inválida o sin permisos. Revísala en Configuración.";
+      message = "API Key de Groq inválida o sin permisos. Revísala en Configuración.";
     } else if (res.status === 429) {
-      message = "Demasiadas solicitudes a Cerebras. Espera un momento e inténtalo de nuevo.";
+      message = "Demasiadas solicitudes a Groq. Espera un momento e inténtalo de nuevo.";
     } else {
-      message = `Cerebras respondió ${res.status}: ${errText}`;
+      message = `Groq respondió ${res.status}: ${errText}`;
     }
     const err = new Error(message);
     err.status = res.status;
@@ -133,14 +135,14 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO, SIN TEXTO ADICIONAL, CON ESTE F
 }`.trim();
 
 /** Busca el precio real de un material. Devuelve { status, data }. */
-export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {}) => {
+export const runUpdatePrice = async ({ body = {}, groqKey, tavilyKey } = {}) => {
   const { name, unit, url: currentUrl, supplier: currentSupplier } = body;
   if (!name) {
     return { status: 400, data: { error: "Falta el nombre del material." } };
   }
 
   try {
-    // ---- Camino A: búsqueda web REAL con Tavily + Cerebras ----
+    // ---- Camino A: búsqueda web REAL con Tavily + Groq ----
     if (tavilyKey) {
       try {
         const results = await tavilySearch(
@@ -150,7 +152,7 @@ export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {})
         );
         if (results.length) {
           const context = buildSearchContext(results);
-          const content = await callCerebras(
+          const content = await callGroq(
             [
               {
                 role: "system",
@@ -163,7 +165,7 @@ export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {})
                 content: `Material: "${name}" (unidad: ${unit || "unidad"}).\n\nRESULTADOS DE BÚSQUEDA WEB:\n${context}`,
               },
             ],
-            { temperature: 0.1, apiKey: cerebrasKey, maxTokens: 700 }
+            { temperature: 0.1, apiKey: groqKey, maxTokens: 700 }
           );
           const parsed = JSON.parse(cleanJsonString(content));
           if (typeof parsed.newPrice === "number" && !isNaN(parsed.newPrice)) {
@@ -176,12 +178,12 @@ export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {})
           }
         }
       } catch (e) {
-        console.error("Búsqueda Tavily falló, se usa solo Cerebras:", e.message);
+        console.error("Búsqueda Tavily falló, se usa solo Groq:", e.message);
       }
     }
 
-    // ---- Camino B: Cerebras sin búsqueda (estimado por conocimiento del modelo) ----
-    const content = await callCerebras(
+    // ---- Camino B: Groq sin búsqueda (estimado por conocimiento del modelo) ----
+    const content = await callGroq(
       [
         {
           role: "system",
@@ -191,7 +193,7 @@ export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {})
         },
         { role: "user", content: `Material: "${name}" (unidad: ${unit || "unidad"}).` },
       ],
-      { temperature: 0.2, apiKey: cerebrasKey, maxTokens: 700 }
+      { temperature: 0.2, apiKey: groqKey, maxTokens: 700 }
     );
 
     let parsed;
@@ -213,7 +215,7 @@ export const runUpdatePrice = async ({ body = {}, cerebrasKey, tavilyKey } = {})
 };
 
 /** Genera el reporte de mercado. Devuelve { status, data }. */
-export const runMarketReport = async ({ body = {}, cerebrasKey, tavilyKey } = {}) => {
+export const runMarketReport = async ({ body = {}, groqKey, tavilyKey } = {}) => {
   const { summary } = body;
   const basePrompt = `
 Genera un reporte ejecutivo breve sobre el mercado de la construcción en Colombia HOY (${getToday()}).
@@ -223,7 +225,7 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
 `.trim();
 
   try {
-    // ---- Camino A: búsqueda web REAL con Tavily + Cerebras ----
+    // ---- Camino A: búsqueda web REAL con Tavily + Groq ----
     if (tavilyKey) {
       try {
         const results = await tavilySearch(
@@ -233,7 +235,7 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
         );
         if (results.length) {
           const context = buildSearchContext(results);
-          const content = await callCerebras(
+          const content = await callGroq(
             [
               {
                 role: "system",
@@ -242,22 +244,22 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
               },
               { role: "user", content: `${basePrompt}\n\nRESULTADOS DE BÚSQUEDA WEB:\n${context}` },
             ],
-            { temperature: 0.4, apiKey: cerebrasKey, maxTokens: 1024 }
+            { temperature: 0.4, apiKey: groqKey, maxTokens: 1024 }
           );
           return { status: 200, data: { report: content || "No se obtuvo respuesta.", liveSearch: true } };
         }
       } catch (e) {
-        console.error("Búsqueda Tavily falló, se usa solo Cerebras:", e.message);
+        console.error("Búsqueda Tavily falló, se usa solo Groq:", e.message);
       }
     }
 
-    // ---- Camino B: Cerebras sin búsqueda ----
-    const content = await callCerebras(
+    // ---- Camino B: Groq sin búsqueda ----
+    const content = await callGroq(
       [
         { role: "system", content: "Eres un analista del sector construcción en Colombia." },
         { role: "user", content: basePrompt },
       ],
-      { temperature: 0.4, apiKey: cerebrasKey, maxTokens: 1024 }
+      { temperature: 0.4, apiKey: groqKey, maxTokens: 1024 }
     );
     const note =
       "⚠️ Reporte basado en el conocimiento del modelo (sin búsqueda web en vivo). Agrega una API Key de Tavily en Configuración para datos en tiempo real.\n\n";
@@ -267,13 +269,13 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
   }
 };
 
-/** Valida una API Key de Cerebras haciendo una llamada mínima al endpoint real de chat. */
+/** Valida una API Key de Groq haciendo una llamada mínima al endpoint real de chat. */
 export const runValidateKey = async (apiKey) => {
   if (!apiKey) {
     return { status: 400, data: { valid: false, error: "No se proporcionó ninguna API Key." } };
   }
   try {
-    await callCerebras([{ role: "user", content: "ping" }], {
+    await callGroq([{ role: "user", content: "ping" }], {
       apiKey,
       maxTokens: 1,
       temperature: 0,
@@ -286,7 +288,7 @@ export const runValidateKey = async (apiKey) => {
         data: {
           valid: false,
           error:
-            "Cerebras rechazó la clave (inválida o sin permisos). Verifica que copiaste tu API Key de Cerebras (empieza con 'csk-') desde cloud.cerebras.ai, sin espacios.",
+            "Groq rechazó la clave (inválida o sin permisos). Verifica que copiaste tu API Key de Groq (empieza con 'gsk_') desde console.groq.com/keys, sin espacios.",
         },
       };
     }
@@ -298,7 +300,7 @@ export const runValidateKey = async (apiKey) => {
 export const applyCors = (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-cerebras-key, x-tavily-key");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-groq-key, x-tavily-key");
   if (req.method === "OPTIONS") {
     res.status(204).end();
     return true;
