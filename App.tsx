@@ -101,10 +101,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddSearchedMaterial = (material: Material) => {
+    setMaterials(prev => [material, ...prev]);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard materials={materials} />;
+        return <Dashboard materials={materials} onAddMaterial={handleAddSearchedMaterial} />;
       case 'materials':
         return (
           <MaterialsView
