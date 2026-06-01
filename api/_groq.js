@@ -2,7 +2,9 @@
 // (carpeta /api) como por el servidor local de desarrollo (server/index.js).
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-export const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound";
+// compound-mini es más liviano y rápido que compound (1 sola búsqueda web por turno),
+// y evita el error 413 (request_too_large) del tier gratuito de Groq.
+export const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound-mini";
 const ENV_API_KEY = process.env.GROQ_API_KEY;
 
 export const groqConfigured = () => !!ENV_API_KEY;
@@ -54,6 +56,18 @@ export const callGroq = async (messages, { temperature = 0.2, apiKey } = {}) => 
 
   if (!res.ok) {
     const errText = await res.text();
+    // Mensajes más claros para los errores más comunes de Groq.
+    if (res.status === 413) {
+      throw new Error(
+        "La consulta superó el límite de tokens del plan gratuito de Groq. Intenta de nuevo en unos segundos o usa el modelo 'groq/compound-mini'."
+      );
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("API Key de Groq inválida o sin permisos. Revísala en Configuración.");
+    }
+    if (res.status === 429) {
+      throw new Error("Demasiadas solicitudes a Groq. Espera un momento e inténtalo de nuevo.");
+    }
     throw new Error(`Groq respondió ${res.status}: ${errText}`);
   }
 
