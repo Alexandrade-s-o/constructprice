@@ -267,23 +267,30 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
   }
 };
 
-/** Valida una API Key de Cerebras. Devuelve { status, data }. */
+/** Valida una API Key de Cerebras haciendo una llamada mínima al endpoint real de chat. */
 export const runValidateKey = async (apiKey) => {
   if (!apiKey) {
     return { status: 400, data: { valid: false, error: "No se proporcionó ninguna API Key." } };
   }
   try {
-    const r = await fetch("https://api.cerebras.ai/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
+    await callCerebras([{ role: "user", content: "ping" }], {
+      apiKey,
+      maxTokens: 1,
+      temperature: 0,
     });
-    if (r.ok) return { status: 200, data: { valid: true } };
-    const detail = await r.text();
-    return {
-      status: 200,
-      data: { valid: false, error: `Cerebras rechazó la clave (${r.status}).`, detail },
-    };
+    return { status: 200, data: { valid: true } };
   } catch (error) {
-    return { status: 500, data: { valid: false, error: error.message } };
+    if (error.status === 401 || error.status === 403) {
+      return {
+        status: 200,
+        data: {
+          valid: false,
+          error:
+            "Cerebras rechazó la clave (inválida o sin permisos). Verifica que copiaste tu API Key de Cerebras (empieza con 'csk-') desde cloud.cerebras.ai, sin espacios.",
+        },
+      };
+    }
+    return { status: 200, data: { valid: false, error: error.message } };
   }
 };
 
