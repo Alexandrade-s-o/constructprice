@@ -2,9 +2,11 @@
 // (carpeta /api) como por el servidor local de desarrollo (server/index.js).
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-// compound-mini es más liviano y rápido que compound (1 sola búsqueda web por turno),
-// y evita el error 413 (request_too_large) del tier gratuito de Groq.
+// Modelo con búsqueda web en vivo (compound). compound-mini es el más liviano.
 export const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound-mini";
+// Modelo normal de respaldo (sin búsqueda web) para cuando el plan gratuito
+// rechaza la búsqueda en vivo con un 413 (request_too_large).
+const FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || "llama-3.3-70b-versatile";
 const ENV_API_KEY = process.env.GROQ_API_KEY;
 
 export const groqConfigured = () => !!ENV_API_KEY;
@@ -36,13 +38,15 @@ export const resolveApiKey = ({ headers = {}, body = {} } = {}) => {
   return (fromHeader || fromBody || ENV_API_KEY || "").trim();
 };
 
-/** Llama a la API de Groq y devuelve el contenido + herramientas ejecutadas. */
-export const callGroq = async (messages, { temperature = 0.2, apiKey, maxTokens = 1024 } = {}) => {
+/** Llama a la API de Groq con un modelo concreto. Lanza Error con .status en caso de fallo. */
+const rawGroqCall = async (messages, { temperature, apiKey, maxTokens, model }) => {
   const key = apiKey || ENV_API_KEY;
   if (!key) {
-    throw new Error(
+    const err = new Error(
       "Falta la API Key de Groq. Ingrésala en la pantalla de Configuración o configúrala en Vercel."
     );
+    err.status = 401;
+    throw err;
   }
 
   const res = await fetch(GROQ_URL, {
@@ -51,34 +55,53 @@ export const callGroq = async (messages, { temperature = 0.2, apiKey, maxTokens 
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    // max_tokens acota los tokens reservados por Groq para el cálculo del límite
-    // del plan gratuito; sin él, se reserva el máximo del modelo y produce un 413.
-    body: JSON.stringify({ model: GROQ_MODEL, temperature, max_tokens: maxTokens, messages }),
+    body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    // Mensajes más claros para los errores más comunes de Groq.
-    if (res.status === 413) {
-      throw new Error(
-        "La consulta superó el límite de tokens del plan gratuito de Groq. Intenta de nuevo en unos segundos o usa el modelo 'groq/compound-mini'."
-      );
-    }
+    let message;
     if (res.status === 401 || res.status === 403) {
-      throw new Error("API Key de Groq inválida o sin permisos. Revísala en Configuración.");
+      message = "API Key de Groq inválida o sin permisos. Revísala en Configuración.";
+    } else if (res.status === 429) {
+      message = "Demasiadas solicitudes a Groq. Espera un momento e inténtalo de nuevo.";
+    } else {
+      message = `Groq respondió ${res.status}: ${errText}`;
     }
-    if (res.status === 429) {
-      throw new Error("Demasiadas solicitudes a Groq. Espera un momento e inténtalo de nuevo.");
-    }
-    throw new Error(`Groq respondió ${res.status}: ${errText}`);
+    const err = new Error(message);
+    err.status = res.status;
+    err.body = errText;
+    throw err;
   }
 
   const data = await res.json();
-  const message = data?.choices?.[0]?.message || {};
-  return {
-    content: message.content || "",
-    executedTools: message.executed_tools || [],
-  };
+  const msg = data?.choices?.[0]?.message || {};
+  return { content: msg.content || "", executedTools: msg.executed_tools || [] };
+};
+
+const isTooLarge = (err) =>
+  err?.status === 413 || /request_too_large|too.large|413/i.test(err?.body || err?.message || "");
+
+/**
+ * Llama a Groq con búsqueda web en vivo (compound) y, si el plan gratuito lo
+ * rechaza por tamaño (413), reintenta con un modelo normal sin búsqueda.
+ * Devuelve { content, executedTools, liveSearch }.
+ */
+export const callGroq = async (messages, { temperature = 0.2, apiKey, maxTokens = 1024 } = {}) => {
+  try {
+    const out = await rawGroqCall(messages, { temperature, apiKey, maxTokens, model: GROQ_MODEL });
+    return { ...out, liveSearch: true };
+  } catch (err) {
+    if (!isTooLarge(err)) throw err;
+    // Fallback: modelo normal sin búsqueda web (datos del conocimiento del modelo).
+    const out = await rawGroqCall(messages, {
+      temperature,
+      apiKey,
+      maxTokens,
+      model: FALLBACK_MODEL,
+    });
+    return { ...out, liveSearch: false };
+  }
 };
 
 const extractUrlFromTools = (executedTools) => {
@@ -125,12 +148,12 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO, SIN TEXTO ADICIONAL, CON ESTE F
 `.trim();
 
   try {
-    const { content, executedTools } = await callGroq(
+    const { content, executedTools, liveSearch } = await callGroq(
       [
         {
           role: "system",
           content:
-            "Eres un asistente experto en precios de materiales de construcción en Colombia. Usas búsqueda web para obtener datos reales y respondes solo con JSON.",
+            "Eres un asistente experto en precios de materiales de construcción en Colombia. Cuando puedes, usas búsqueda web para datos reales. Respondes SOLO con JSON.",
         },
         { role: "user", content: prompt },
       ],
@@ -159,15 +182,22 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO, SIN TEXTO ADICIONAL, CON ESTE F
       finalUrl = extractUrlFromTools(executedTools) || currentUrl || "";
     }
 
+    // Si fue por el modelo de respaldo (sin búsqueda en vivo), es un estimado.
+    const reason = data.reason || "";
+    const description = liveSearch
+      ? reason
+      : `Estimado (sin búsqueda web en vivo por límite del plan gratuito de Groq). ${reason}`.trim();
+
     return {
       status: 200,
       data: {
         price: data.newPrice,
         lastUpdated: getToday(),
-        url: finalUrl || currentUrl || "",
+        url: liveSearch ? finalUrl || currentUrl || "" : currentUrl || "",
         supplier: data.supplier || currentSupplier,
         trend: ["up", "down", "stable"].includes(data.trend) ? data.trend : "stable",
-        description: data.reason || "",
+        description,
+        estimated: !liveSearch,
       },
     };
   } catch (error) {
@@ -186,18 +216,21 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
 `.trim();
 
   try {
-    const { content } = await callGroq(
+    const { content, liveSearch } = await callGroq(
       [
         {
           role: "system",
           content:
-            "Eres un analista del sector construcción en Colombia. Usas búsqueda web para datos actuales.",
+            "Eres un analista del sector construcción en Colombia. Cuando puedes, usas búsqueda web para datos actuales.",
         },
         { role: "user", content: prompt },
       ],
       { temperature: 0.4, apiKey, maxTokens: 1024 }
     );
-    return { status: 200, data: { report: content || "No se obtuvo respuesta." } };
+    const note = liveSearch
+      ? ""
+      : "⚠️ Reporte generado con conocimiento general del modelo (sin búsqueda web en vivo, por el límite del plan gratuito de Groq).\n\n";
+    return { status: 200, data: { report: note + (content || "No se obtuvo respuesta."), liveSearch } };
   } catch (error) {
     return { status: 500, data: { error: error.message } };
   }
