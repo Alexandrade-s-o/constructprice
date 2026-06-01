@@ -37,7 +37,7 @@ export const resolveApiKey = ({ headers = {}, body = {} } = {}) => {
 };
 
 /** Llama a la API de Groq y devuelve el contenido + herramientas ejecutadas. */
-export const callGroq = async (messages, { temperature = 0.2, apiKey } = {}) => {
+export const callGroq = async (messages, { temperature = 0.2, apiKey, maxTokens = 1024 } = {}) => {
   const key = apiKey || ENV_API_KEY;
   if (!key) {
     throw new Error(
@@ -51,7 +51,9 @@ export const callGroq = async (messages, { temperature = 0.2, apiKey } = {}) => 
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model: GROQ_MODEL, temperature, messages }),
+    // max_tokens acota los tokens reservados por Groq para el cálculo del límite
+    // del plan gratuito; sin él, se reserva el máximo del modelo y produce un 413.
+    body: JSON.stringify({ model: GROQ_MODEL, temperature, max_tokens: maxTokens, messages }),
   });
 
   if (!res.ok) {
@@ -132,7 +134,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO, SIN TEXTO ADICIONAL, CON ESTE F
         },
         { role: "user", content: prompt },
       ],
-      { apiKey }
+      { apiKey, maxTokens: 700 }
     );
 
     let data;
@@ -193,7 +195,7 @@ Tono profesional. Máximo 3 párrafos cortos. Responde en español.
         },
         { role: "user", content: prompt },
       ],
-      { temperature: 0.4, apiKey }
+      { temperature: 0.4, apiKey, maxTokens: 1024 }
     );
     return { status: 200, data: { report: content || "No se obtuvo respuesta." } };
   } catch (error) {
