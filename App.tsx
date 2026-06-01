@@ -9,9 +9,14 @@ import MaterialModal from './components/MaterialModal';
 import { Material } from './types';
 import { INITIAL_MATERIALS } from './constants';
 import { Menu } from 'lucide-react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
-const socket = io('http://localhost:3001'); // Conexión al backend de sockets
+// Sincronización en tiempo real (WebSocket): solo si hay un servidor disponible.
+// En Vercel no hay WebSocket persistente, así que se desactiva automáticamente.
+const SOCKET_URL =
+  (import.meta.env.VITE_SOCKET_URL as string | undefined) ??
+  (import.meta.env.DEV ? 'http://localhost:3001' : '');
+const socket: Socket | null = SOCKET_URL ? io(SOCKET_URL) : null;
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,8 +24,10 @@ const App: React.FC = () => {
   const [materials, setMaterials] = useState<Material[]>(INITIAL_MATERIALS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Realtime Connection
+  // Realtime Connection (solo si hay servidor de sockets)
   useEffect(() => {
+    if (!socket) return;
+
     socket.on('connect', () => {
       console.log('Conectado al servidor de precios en tiempo real');
     });
@@ -74,8 +81,8 @@ const App: React.FC = () => {
       // Update local state immediately
       setMaterials(materials.map(m => m.id === editingMaterial.id ? updatedMaterial : m));
 
-      // Emit socket event for others
-      socket.emit('updatePrice', {
+      // Emit socket event for others (si hay servidor de sockets)
+      socket?.emit('updatePrice', {
         id: updatedMaterial.id,
         price: updatedMaterial.price,
         trend: updatedMaterial.trend

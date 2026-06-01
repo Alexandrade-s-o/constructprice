@@ -1,9 +1,13 @@
 import { Material } from "../types";
 import { getApiKey } from "./apiKey";
 
-// URL del backend (Express + Groq). Se puede sobreescribir con VITE_API_URL.
+// URL del backend (Express + Groq).
+// - En producción (Vercel) usa rutas relativas ("") → las funciones serverless de /api.
+// - En desarrollo apunta al servidor local (puerto 3001).
+// - Se puede sobreescribir con VITE_API_URL.
 const API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:3001";
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 // Cabeceras con la API Key que el usuario ingresó en la interfaz (si existe).
 const buildHeaders = (): Record<string, string> => {

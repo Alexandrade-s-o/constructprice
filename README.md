@@ -93,6 +93,28 @@ npm run dev
 
 ---
 
+## ☁️ Despliegue en Vercel
+
+El proyecto ya está listo para Vercel. Los endpoints de Groq corren como **funciones
+serverless** (carpeta `/api`) y el frontend se sirve como sitio estático.
+
+> **Nota:** Vercel no mantiene conexiones WebSocket persistentes, así que la
+> sincronización en tiempo real (Socket.io) solo funciona en local. La búsqueda de
+> precios con IA sí funciona perfectamente en Vercel.
+
+### Pasos
+1. Sube el repositorio a GitHub (este branch ya lo está).
+2. En [vercel.com](https://vercel.com) → **Add New → Project** → importa el repositorio.
+   Vercel detecta Vite automáticamente (build `npm run build`, salida `dist`).
+3. **(Opcional)** En *Settings → Environment Variables* añade `GROQ_API_KEY` con tu clave.
+   Si no la pones, los usuarios pueden ingresarla desde la pantalla **Configuración**.
+4. **Deploy**. Cada `git push` al repositorio crea un nuevo despliegue automáticamente.
+
+Endpoints disponibles en producción: `/api/update-price`, `/api/market-report`,
+`/api/validate-key`, `/api/health`.
+
+---
+
 ## 🗄️ Base de Datos
 
 El esquema SQL para la base de datos (PostgreSQL) se encuentra en:
